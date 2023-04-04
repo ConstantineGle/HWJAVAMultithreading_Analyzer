@@ -1,99 +1,79 @@
-import java.util.concurrent.atomic.AtomicInteger;
-
-import static utils.Utils.*;
+import java.util.Random;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.BlockingQueue;
 
 public class Main {
+
+    public static ArrayBlockingQueue<String> blockingQueueA = new ArrayBlockingQueue<>(100);
+    public static ArrayBlockingQueue<String> blockingQueueB = new ArrayBlockingQueue<>(100);
+    public static ArrayBlockingQueue<String> blockingQueueC = new ArrayBlockingQueue<>(100);
 
 
     public static void main(String[] args) throws InterruptedException {
 
-        Thread thread = new Thread(() -> {
-            for (int i = 0; i < 10_000; i++) {
-                String text = generateText("abc", 100_000);
+        Thread textGenerator = new Thread(() ->
+        {
+            for (int i = 0; i < 10000; i++) {
+                String text = generateText("abc", 100000);
                 try {
                     blockingQueueA.put(text);
                     blockingQueueB.put(text);
                     blockingQueueC.put(text);
                 } catch (InterruptedException e) {
-                    return;
+                    throw new RuntimeException();
                 }
             }
-        });
-        thread.start();
+        }
+        );
+        textGenerator.start();
 
-        Thread threadForA = new Thread(() -> {
-            for (int i = 0; i < 10_000; i++) {
-                try {
-                    AtomicInteger intA = new AtomicInteger(0);
-                    String symbolA = blockingQueueA.take();
-                    for (int j = 0; j < symbolA.length(); j++) {
-                        if (symbolA.charAt(j) == 'a') {
-                            intA.getAndIncrement();
-                        }
-                    }
-                    if (intA.get() > atomicIntegerA.get()) {
-                        atomicIntegerA = intA;
-                        atomicReferenceA.set(symbolA);
-                    }
-                } catch (InterruptedException e) {
-                    return;
-                }
-            }
-        });
-        threadForA.start();
+        Thread a = getThread(blockingQueueA, 'a');
+        Thread b = getThread(blockingQueueB, 'b');
+        Thread c = getThread(blockingQueueC, 'c');
 
-        Thread threadForB = new Thread(() -> {
-            for (int i = 0; i < 10_000; i++) {
-                try {
-                    AtomicInteger intB = new AtomicInteger(0);
-                    String symbolB = blockingQueueB.take();
-                    for (int j = 0; j < symbolB.length(); j++) {
-                        if (symbolB.charAt(j) == 'b') {
-                            intB.getAndIncrement();
-                        }
-                    }
-                    if (intB.get() > atomicIntegerB.get()) {
-                        atomicIntegerB = intB;
-                        atomicReferenceB.set(symbolB);
-                    }
-                } catch (InterruptedException e) {
-                    return;
-                }
-            }
-        });
-        threadForB.start();
+        a.start();
+        b.start();
+        c.start();
 
-        Thread threadForC = new Thread(() -> {
-            for (int i = 0; i < 10_000; i++) {
-                try {
-                    AtomicInteger intC = new AtomicInteger(0);
-                    String symbolC = blockingQueueC.take();
-                    for (int j = 0; j < symbolC.length(); j++) {
-                        if (symbolC.charAt(j) == 'c') {
-                            intC.getAndIncrement();
-                        }
-                    }
-                    if (intC.get() > atomicIntegerC.get()) {
-                        atomicIntegerC = intC;
-                        atomicReferenceC.set(symbolC);
-                    }
-                } catch (InterruptedException e) {
-                    return;
-                }
-            }
-        });
-        threadForC.start();
-
-        threadForA.join();
-        threadForB.join();
-        threadForC.join();
-
-        System.out.println("Максимальное количество символов 'a' - " + atomicIntegerA.get());
-        System.out.println("Максимальное количество символов 'b' - " + atomicIntegerB.get());
-        System.out.println("Максимальное количество символов 'c' - " + atomicIntegerC.get());
-
+        a.join();
+        b.join();
+        c.join();
 
     }
 
+    public static String generateText(String letters, int length) {
+        Random random = new Random();
+        StringBuilder text = new StringBuilder();
+        for (int i = 0; i < length; i++) {
+            text.append(letters.charAt(random.nextInt(letters.length())));
+        }
+        return text.toString();
+    }
 
+    public static Thread getThread(BlockingQueue<String> queue, char letter) {
+        return new Thread(() -> {
+            int max = findMaxCharCount(queue, letter);
+            System.out.println("Max qty of " + letter + " int all texts: " + max);
+        });
+    }
+
+    public static int findMaxCharCount(BlockingQueue<String> queue, char letter) {
+        int count = 0;
+        int max = 0;
+        String text;
+        try {
+            for (int i = 0; i < 10000; i++) {
+                text = queue.take();
+                for (char c : text.toCharArray()) {
+                    if (c == letter) count++;
+                }
+                if (count > max) max = count;
+                count = 0;
+            }
+        } catch (InterruptedException e) {
+            System.out.println(Thread.currentThread().getName() + "was interrupted");
+            return -1;
+        }
+        return max;
+    }
 }
